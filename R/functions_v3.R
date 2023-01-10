@@ -21,54 +21,116 @@ admissible_rev = function(i, j, gam_short_old) {
 
 mypolr = function(formula, data, ic, method, nq_y, nq_x) {
   boolFalse = FALSE
-  if (ic == "bic") {
-    tryCatch({
-      #sometimes MASS::polr fails to initialize
-      IC = stats::BIC(MASS::polr(formula, data = data, method = method))
-      boolFalse <- TRUE
-    }, error = function(e) {
-
-    }, finally = {
-    })
-    while (!boolFalse) {
+  if (nq_y > 2) {
+    if (ic == "bic") {
       tryCatch({
         #sometimes MASS::polr fails to initialize
-        IC = stats::BIC(MASS::polr(
-          formula,
-          data = data,
-          start = sort(stats::rnorm(nq_y - 1 + sum(nq_x - 1))),
-          method = method
-        ))
+        IC = stats::BIC(MASS::polr(formula, data = data, method = method))
         boolFalse <- TRUE
       }, error = function(e) {
 
       }, finally = {
+
       })
+      while (!boolFalse) {
+        tryCatch({
+          IC = stats::BIC(MASS::polr(
+            formula,
+            data = data,
+            start = sort(stats::rnorm(nq_y - 1 + sum(nq_x - 1))),
+            method = method
+          ))
+          boolFalse <- TRUE
+        }, error = function(e) {
+
+        }, finally = {
+
+        })
+      }
+    } else if (ic == "aic") {
+      tryCatch({
+        IC = stats::AIC(MASS::polr(formula, data = data, method = method))
+        boolFalse <- TRUE
+      }, error = function(e) {
+
+      }, finally = {
+
+      })
+      while (!boolFalse) {
+        tryCatch({
+          IC = stats::AIC(MASS::polr(
+            formula,
+            data = data,
+            start = sort(stats::rnorm(nq_y - 1 + sum(nq_x - 1))),
+            method = method
+          ))
+          boolFalse <- TRUE
+
+        }, error = function(e) {
+
+        }, finally = {
+
+        })
+      }
     }
-  } else if (ic == "aic") {
-    tryCatch({
-      #sometimes MASS::polr fails to initialize
-      IC = stats::AIC(MASS::polr(formula, data = data, method = method))
-      boolFalse <- TRUE
-    }, error = function(e) {
-
-    }, finally = {
-    })
-    while (!boolFalse) {
+  } else{
+    if (ic == "bic") {
       tryCatch({
-        #sometimes MASS::polr fails to initialize
-        IC = stats::AIC(MASS::polr(
+        IC = stats::BIC(stats::glm(
           formula,
-          data = data,
-          start = sort(stats::rnorm(nq_y - 1 + sum(nq_x - 1))),
-          method = method
+          data = data ,
+          family = stats::binomial(link = method)
         ))
         boolFalse <- TRUE
-
       }, error = function(e) {
 
       }, finally = {
+
       })
+      while (!boolFalse) {
+        tryCatch({
+          IC = stats::BIC(stats::glm(
+            formula,
+            data = data,
+            start = sort(stats::rnorm(nq_y - 1 + sum(nq_x - 1))),
+            family = stats::binomial(link = method)
+          ))
+          boolFalse <- TRUE
+        }, error = function(e) {
+
+        }, finally = {
+
+        })
+      }
+    } else if (ic == "aic") {
+      tryCatch({
+        IC = stats::AIC(stats::glm(
+          formula,
+          data = data ,
+          family = stats::binomial(link = method)
+        ))
+        boolFalse <- TRUE
+      }, error = function(e) {
+
+      }, finally = {
+
+      })
+      while (!boolFalse) {
+        tryCatch({
+          IC = stats::AIC(stats::glm(
+            formula,
+            data = data,
+            start = sort(stats::rnorm(nq_y - 1 + sum(nq_x - 1))),
+            family = stats::binomial(link = method)
+          ))
+          boolFalse <- TRUE
+
+        }, error = function(e) {
+
+        }, finally = {
+
+        })
+      }
     }
   }
   return(IC)
@@ -79,7 +141,8 @@ mypolr = function(formula, data, ic, method, nq_y, nq_x) {
 oBN_greedy = function(y,
                       gam = NULL,
                       ic = "bic",
-                      method = "probit") {
+                      method = "probit",
+                      verbose = verbose) {
   #hill-climbing
 
 
@@ -105,30 +168,35 @@ oBN_greedy = function(y,
     } else{
       ind_noi = c(1:(i - 1), (i + 1):q)
     }
-    ind_q[i,] = ind_noi
+    ind_q[i, ] = ind_noi
   }
 
-
+  iter = 0
   ic_improv = 1
   act_ind = c(NA, NA)
   state = "add" # or "del"
   if (ic == "bic") {
     ic_best = rep(0, q)
     for (i in 1:q) {
-      if (sum(gam[i, ]) > 0) {
+      if (sum(gam[i,]) > 0) {
         ic_best[i] = mypolr(
           y[, i] ~ .,
-          data = y[, gam[i, ]],
+          data = y[, gam[i,]],
           ic = ic,
           method = method,
           nq_y = nq[i],
-          nq_x = nq[gam[i, ]]
+          nq_x = nq[gam[i,]]
         )
       } else{
-        ic_best[i] = stats::BIC(MASS::polr(y[, i] ~ 1, method = method))
+        if (nq[i] > 2) {
+          ic_best[i] = stats::BIC(MASS::polr(y[, i] ~ 1, method = method))
+        } else{
+          ic_best[i] = stats::BIC(stats::glm(y[, i] ~ 1, family = stats::binomial(link = method)))
+        }
       }
     }
     while (ic_improv > 0) {
+      iter = iter + 1
       ic_improv = -Inf
       ic_improv_rev = rep(-Inf, 2)
       gam_new = gam
@@ -142,17 +210,21 @@ oBN_greedy = function(y,
             if (gam[i, ind_q[i, j]]) {
               #delete
               gam_new[i, ind_q[i, j]] = FALSE
-              if (sum(gam_new[i, ]) > 0) {
+              if (sum(gam_new[i,]) > 0) {
                 ic_best_new = mypolr(
                   y[, i] ~ .,
-                  data = y[, gam_new[i, ]],
+                  data = y[, gam_new[i,]],
                   ic = ic,
                   method = method,
                   nq_y = nq[i],
-                  nq_x = nq[gam_new[i, ]]
+                  nq_x = nq[gam_new[i,]]
                 )
               } else{
-                ic_best_new = stats::BIC(MASS::polr(y[, i] ~ 1, method = method))
+                if (nq[i] > 2) {
+                  ic_best_new = stats::BIC(MASS::polr(y[, i] ~ 1, method = method))
+                } else{
+                  ic_best_new = stats::BIC(stats::glm(y[, i] ~ 1, family = stats::binomial(link = method)))
+                }
               }
               ic_improv_new = ic_best[i] - ic_best_new
               if (ic_improv_new > ic_improv) {
@@ -164,17 +236,21 @@ oBN_greedy = function(y,
             } else{
               #add
               gam_new[i, ind_q[i, j]] = TRUE
-              if (sum(gam_new[i, ]) > 0) {
+              if (sum(gam_new[i,]) > 0) {
                 ic_best_new = mypolr(
                   y[, i] ~ .,
-                  data = y[, gam_new[i, ]],
+                  data = y[, gam_new[i,]],
                   ic = ic,
                   method = method,
                   nq_y = nq[i],
-                  nq_x = nq[gam_new[i, ]]
+                  nq_x = nq[gam_new[i,]]
                 )
               } else{
-                ic_best_new = stats::BIC(MASS::polr(y[, i] ~ 1, method = method))
+                if (nq[i] > 2) {
+                  ic_best_new = stats::BIC(MASS::polr(y[, i] ~ 1, method = method))
+                } else{
+                  ic_best_new = stats::BIC(stats::glm(y[, i] ~ 1, family = stats::binomial(link = method)))
+                }
               }
               ic_improv_new = ic_best[i] - ic_best_new
               if (ic_improv_new > ic_improv) {
@@ -194,29 +270,37 @@ oBN_greedy = function(y,
             tmp = gam_new[i, ind_q[i, j]]
             gam_new[ind_q[i, j], i] = tmp
             gam_new[i, ind_q[i, j]] = !tmp
-            if (sum(gam_new[i, ]) > 0) {
+            if (sum(gam_new[i,]) > 0) {
               ic_rev_best_new[1] = mypolr(
                 y[, i] ~ .,
-                data = y[, gam_new[i, ]],
+                data = y[, gam_new[i,]],
                 ic = ic,
                 method = method,
                 nq_y = nq[i],
-                nq_x = nq[gam_new[i, ]]
+                nq_x = nq[gam_new[i,]]
               )
             } else{
-              ic_rev_best_new[1] = stats::BIC(MASS::polr(y[, i] ~ 1, method = method))
+              if (nq[i] > 2) {
+                ic_rev_best_new[1] = stats::BIC(MASS::polr(y[, i] ~ 1, method = method))
+              } else{
+                ic_rev_best_new[1] = stats::BIC(stats::glm(y[, i] ~ 1, family = stats::binomial(link = method)))
+              }
             }
             if (gam_new[ind_q[i, j], i] > 0) {
               ic_rev_best_new[2] = mypolr(
                 y[, ind_q[i, j]] ~ .,
-                data = y[, gam_new[ind_q[i, j], ]],
+                data = y[, gam_new[ind_q[i, j],]],
                 ic = ic,
                 method = method,
                 nq_y = nq[ind_q[i, j]],
-                nq_x = nq[gam_new[ind_q[i, j], ]]
+                nq_x = nq[gam_new[ind_q[i, j],]]
               )
             } else{
-              ic_rev_best_new[2] = stats::BIC(MASS::polr(y[, ind_q[i, j]] ~ 1, method = method))
+              if (nq[i] > 2) {
+                ic_rev_best_new[2] = stats::BIC(MASS::polr(y[, ind_q[i, j]] ~ 1, method = method))
+              } else{
+                ic_rev_best_new[2] = stats::BIC(stats::glm(y[, ind_q[i, j]] ~ 1, family = stats::binomial(link = method)))
+              }
             }
             ic_improv_rev_new[1] = ic_best[i] - ic_rev_best_new[1]
             ic_improv_rev_new[2] = ic_best[ind_q[i, j]] - ic_rev_best_new[2]
@@ -247,22 +331,32 @@ oBN_greedy = function(y,
           ic_best[act_ind[1]] = ic_best[act_ind[1]] - ic_improv_rev[1]
           ic_best[act_ind[2]] = ic_best[act_ind[2]] - ic_improv_rev[2]
         }
+      }
+      if (verbose&&iter%%1==0){
+        print(paste(iter," iterations have completed",sep=""))
+        print("The current DAG adjacency matrix is")
+        print(gam)
+        print(paste("with ",  ic, " = ",sum(ic_best),sep=""))
       }
     }
   } else if (ic == "aic") {
     ic_best = rep(0, q)
     for (i in 1:q) {
-      if (sum(gam[i, ]) > 0) {
+      if (sum(gam[i,]) > 0) {
         ic_best[i] = mypolr(
           y[, i] ~ .,
-          data = y[, gam[i, ]],
+          data = y[, gam[i,]],
           ic = ic,
           method = method,
           nq_y = nq[i],
-          nq_x = nq[gam[i, ]]
+          nq_x = nq[gam[i,]]
         )
       } else{
-        ic_best[i] = stats::AIC(MASS::polr(y[, i] ~ 1, method = method))
+        if (nq[i] > 2) {
+          ic_best[i] = stats::AIC(MASS::polr(y[, i] ~ 1, method = method))
+        } else{
+          ic_best[i] = stats::AIC(stats::glm(y[, i] ~ 1, family = stats::binomial(link = method)))
+        }
       }
     }
     while (ic_improv > 0) {
@@ -279,17 +373,21 @@ oBN_greedy = function(y,
             if (gam[i, ind_q[i, j]]) {
               #delete
               gam_new[i, ind_q[i, j]] = FALSE
-              if (sum(gam_new[i, ]) > 0) {
+              if (sum(gam_new[i,]) > 0) {
                 ic_best_new = mypolr(
                   y[, i] ~ .,
-                  data = y[, gam_new[i, ]],
+                  data = y[, gam_new[i,]],
                   ic = ic,
                   method = method,
                   nq_y = nq[i],
-                  nq_x = nq[gam_new[i, ]]
+                  nq_x = nq[gam_new[i,]]
                 )
               } else{
-                ic_best_new = stats::AIC(MASS::polr(y[, i] ~ 1, method = method))
+                if (nq[i] > 2) {
+                  ic_best_new = stats::AIC(MASS::polr(y[, i] ~ 1, method = method))
+                } else{
+                  ic_best_new = stats::AIC(stats::glm(y[, i] ~ 1, family = stats::binomial(link = method)))
+                }
               }
               ic_improv_new = ic_best[i] - ic_best_new
               if (ic_improv_new > ic_improv) {
@@ -301,17 +399,21 @@ oBN_greedy = function(y,
             } else{
               #add
               gam_new[i, ind_q[i, j]] = TRUE
-              if (sum(gam_new[i, ]) > 0) {
+              if (sum(gam_new[i,]) > 0) {
                 ic_best_new = mypolr(
                   y[, i] ~ .,
-                  data = y[, gam_new[i, ]],
+                  data = y[, gam_new[i,]],
                   ic = ic,
                   method = method,
                   nq_y = nq[i],
-                  nq_x = nq[gam_new[i, ]]
+                  nq_x = nq[gam_new[i,]]
                 )
               } else{
-                ic_best_new = stats::AIC(MASS::polr(y[, i] ~ 1, method = method))
+                if (nq[i] > 2) {
+                  ic_best_new = stats::AIC(MASS::polr(y[, i] ~ 1, method = method))
+                } else{
+                  ic_best_new = stats::AIC(stats::glm(y[, i] ~ 1, family = stats::binomial(link = method)))
+                }
               }
               ic_improv_new = ic_best[i] - ic_best_new
               if (ic_improv_new > ic_improv) {
@@ -331,29 +433,37 @@ oBN_greedy = function(y,
             tmp = gam_new[i, ind_q[i, j]]
             gam_new[ind_q[i, j], i] = tmp
             gam_new[i, ind_q[i, j]] = !tmp
-            if (sum(gam_new[i, ]) > 0) {
+            if (sum(gam_new[i,]) > 0) {
               ic_rev_best_new[1] = mypolr(
                 y[, i] ~ .,
-                data = y[, gam_new[i, ]],
+                data = y[, gam_new[i,]],
                 ic = ic,
                 method = method,
                 nq_y = nq[i],
-                nq_x = nq[gam_new[i, ]]
+                nq_x = nq[gam_new[i,]]
               )
             } else{
-              ic_rev_best_new[1] = stats::AIC(MASS::polr(y[, i] ~ 1, method = method))
+              if (nq[i] > 2) {
+                ic_rev_best_new[1] = stats::AIC(MASS::polr(y[, i] ~ 1, method = method))
+              } else{
+                ic_rev_best_new[1] = stats::AIC(stats::glm(y[, i] ~ 1, family = stats::binomial(link = method)))
+              }
             }
             if (gam_new[ind_q[i, j], i] > 0) {
               ic_rev_best_new[2] = mypolr(
                 y[, ind_q[i, j]] ~ .,
-                data = y[, gam_new[ind_q[i, j], ]],
+                data = y[, gam_new[ind_q[i, j],]],
                 ic = ic,
                 method = method,
                 nq_y = nq[ind_q[i, j]],
-                nq_x = nq[gam_new[ind_q[i, j], ]]
+                nq_x = nq[gam_new[ind_q[i, j],]]
               )
             } else{
-              ic_rev_best_new[2] = stats::AIC(MASS::polr(y[, ind_q[i, j]] ~ 1, method = method))
+              if (nq[i] > 2) {
+                ic_rev_best_new[2] = stats::AIC(MASS::polr(y[, ind_q[i, j]] ~ 1, method = method))
+              } else{
+                ic_rev_best_new[2] = stats::AIC(stats::glm(y[, ind_q[i, j]] ~ 1, family = stats::binomial(link = method)))
+              }
             }
             ic_improv_rev_new[1] = ic_best[i] - ic_rev_best_new[1]
             ic_improv_rev_new[2] = ic_best[ind_q[i, j]] - ic_rev_best_new[2]
@@ -385,6 +495,10 @@ oBN_greedy = function(y,
           ic_best[act_ind[2]] = ic_best[act_ind[2]] - ic_improv_rev[2]
         }
       }
+    }
+    if (verbose&&iter%%10==0){
+      print(paste(iter," number of iterations have completed",sep=""))
+      print(paste("The current DAG adjacency matrix is ", gam, " with ",  ic, " = ",sum(ic_best),sep=""))
     }
   }
   return(list(gam = gam, ic_best = sum(ic_best)))
@@ -394,7 +508,8 @@ oBN_greedy = function(y,
 oBN_greedy_wrap = function(y,
                            ic = "bic",
                            method = "probit",
-                           nstart = 1) {
+                           nstart = 1,
+                           verbose=verbose) {
   q = ncol(y)
   gam_list  = vector("list", nstart)
   ic_best_list = rep(NA, nstart)
@@ -402,7 +517,8 @@ oBN_greedy_wrap = function(y,
     fit = oBN_greedy(y,
                      gam = NULL,
                      ic = ic,
-                     method = method)
+                     method = method,
+                     verbose=verbose)
     gam_list[[1]] = fit$gam
     ic_best_list[1] = fit$ic_best
   } else{
@@ -423,7 +539,8 @@ oBN_greedy_wrap = function(y,
       fit = oBN_greedy(y,
                        gam = gam,
                        ic = ic,
-                       method = method)
+                       method = method,
+                       verbose=verbose)
       gam_list[[i]] = fit$gam
       ic_best_list[i] = fit$ic_best
     }
@@ -490,10 +607,10 @@ oBN_exhaust = function(y,
     for (m in 1:length(IC)) {
       gam = gam_list[, , m]
       for (i in 1:q) {
-        gam_tmp = gam[i, ]
+        gam_tmp = gam[i,]
         if (sum(gam_tmp) == 0) {
           if (nl[i] == 2) {
-            IC[m] = IC[m] + stats::BIC(stats::glm(y[, i] ~ 1, family = stats::binomial(link = "probit")))
+            IC[m] = IC[m] + stats::BIC(stats::glm(y[, i] ~ 1, family = stats::binomial(link = method)))
           } else{
             IC[m] = IC[m] + stats::BIC(MASS::polr(y[, i] ~ 1, method = method))
           }
@@ -502,18 +619,19 @@ oBN_exhaust = function(y,
             IC[m] = IC[m] + stats::BIC(stats::glm(
               y[, i] ~ .,
               data = y[, gam_tmp == 1],
-              family = stats::binomial(link = "probit")
+              family = stats::binomial(link = method)
             ))
           } else{
             boolFalse = FALSE
             tryCatch({
               #sometimes MASS::polr fails to initialize
               IC[m] = IC[m] + stats::BIC(MASS::polr(y[, i] ~ ., data = y[, gam_tmp ==
-                                                                    1], method = method))
+                                                                           1], method = method))
               boolFalse <- TRUE
             }, error = function(e) {
 
             }, finally = {
+
             })
 
             if (!boolFalse) {
@@ -532,10 +650,10 @@ oBN_exhaust = function(y,
     for (m in 1:length(IC)) {
       gam = gam_list[, , m]
       for (i in 1:q) {
-        gam_tmp = gam[i, ]
+        gam_tmp = gam[i,]
         if (sum(gam_tmp) == 0) {
           if (nl[i] == 2) {
-            IC[m] = IC[m] + stats::AIC(stats::glm(y[, i] ~ 1, family = stats::binomial(link = "probit")))
+            IC[m] = IC[m] + stats::AIC(stats::glm(y[, i] ~ 1, family = stats::binomial(link = method)))
           } else{
             IC[m] = IC[m] + stats::AIC(MASS::polr(y[, i] ~ 1, method = method))
           }
@@ -544,18 +662,19 @@ oBN_exhaust = function(y,
             IC[m] = IC[m] + stats::AIC(stats::glm(
               y[, i] ~ .,
               data = y[, gam_tmp == 1],
-              family = stats::binomial(link = "probit")
+              family = stats::binomial(link = method)
             ))
           } else{
             boolFalse = FALSE
             tryCatch({
               #sometimes MASS::polr fails to initialize
               IC[m] = IC[m] + stats::AIC(MASS::polr(y[, i] ~ ., data = y[, gam_tmp ==
-                                                                    1], method = method))
+                                                                           1], method = method))
               boolFalse <- TRUE
             }, error = function(e) {
 
             }, finally = {
+
             })
 
             if (!boolFalse) {
@@ -589,6 +708,7 @@ oBN_exhaust = function(y,
 #' @param link the link function for ordinal regression. The default is "probit". Other choices are "logistic", "loglog", "cloglog", and "cauchit".
 #' @param G a list of DAG adjacency matrices that users want to restrict their search on for the "exhaust" search. The default is "NULL" meaning no restriction imposed on the search.
 #' @param nstart number of random graph initializations for the "greedy" search.
+#' @param verbose if TRUE, messages are printed during the run of the greedy search algorithm.
 #' @return A list with two elements, gam and ic_best. gam is an estimated DAG adjacency matrix whose (i,j)th entry is 1 if j->i is present in the graph and 0 otherwise. ic_best is the correponding information criterion value.
 #'
 #' @export
@@ -596,7 +716,7 @@ oBN_exhaust = function(y,
 #' @examples
 #' set.seed(2020)
 #' n=1000 #sample size
-#' q=5 #number of nodes
+#' q=3 #number of nodes
 #' y = u = matrix(0,n,q)
 #' u[,1] = 4*rnorm(n)
 #' y[,1] = (u[,1]>1) + (u[,1]>2)
@@ -605,7 +725,7 @@ oBN_exhaust = function(y,
 #'   y[,j]=(u[,j]>1) + (u[,j]>2)
 #' }
 #' A=matrix(0,q,q) #true DAG adjacency matrix
-#' A[2,1]=A[3,2]=A[4,3]=A[5,4]=1
+#' A[2,1]=A[3,2]=1
 #' y=as.data.frame(y)
 #' for (j in 1:q){
 #'   y[,j]=as.factor(y[,j])
@@ -620,11 +740,12 @@ OCD = function(y,
                ic = "bic",
                link = "probit",
                G = NULL,
-               nstart = 1) {
+               nstart = 1,
+               verbose = FALSE) {
   if (search == "exhaust") {
     G = oBN_exhaust(y, G, ic, link)
   } else{
-    G = oBN_greedy_wrap(y, ic, link, nstart)
+    G = oBN_greedy_wrap(y, ic, link, nstart, verbose)
   }
   return(G)
 }
