@@ -142,7 +142,8 @@ oBN_greedy = function(y,
                       gam = NULL,
                       ic = "bic",
                       method = "probit",
-                      verbose = verbose) {
+                      verbose = verbose,
+                      maxit = maxit) {
   #hill-climbing
 
 
@@ -168,7 +169,7 @@ oBN_greedy = function(y,
     } else{
       ind_noi = c(1:(i - 1), (i + 1):q)
     }
-    ind_q[i, ] = ind_noi
+    ind_q[i,] = ind_noi
   }
 
   iter = 0
@@ -178,14 +179,14 @@ oBN_greedy = function(y,
   if (ic == "bic") {
     ic_best = rep(0, q)
     for (i in 1:q) {
-      if (sum(gam[i,]) > 0) {
+      if (sum(gam[i, ]) > 0) {
         ic_best[i] = mypolr(
           y[, i] ~ .,
-          data = y[, gam[i,]],
+          data = y[, gam[i, ]],
           ic = ic,
           method = method,
           nq_y = nq[i],
-          nq_x = nq[gam[i,]]
+          nq_x = nq[gam[i, ]]
         )
       } else{
         if (nq[i] > 2) {
@@ -195,7 +196,7 @@ oBN_greedy = function(y,
         }
       }
     }
-    while (ic_improv > 0) {
+    while (ic_improv > 0 && iter < maxit) {
       iter = iter + 1
       ic_improv = -Inf
       ic_improv_rev = rep(-Inf, 2)
@@ -210,14 +211,14 @@ oBN_greedy = function(y,
             if (gam[i, ind_q[i, j]]) {
               #delete
               gam_new[i, ind_q[i, j]] = FALSE
-              if (sum(gam_new[i,]) > 0) {
+              if (sum(gam_new[i, ]) > 0) {
                 ic_best_new = mypolr(
                   y[, i] ~ .,
-                  data = y[, gam_new[i,]],
+                  data = y[, gam_new[i, ]],
                   ic = ic,
                   method = method,
                   nq_y = nq[i],
-                  nq_x = nq[gam_new[i,]]
+                  nq_x = nq[gam_new[i, ]]
                 )
               } else{
                 if (nq[i] > 2) {
@@ -236,14 +237,14 @@ oBN_greedy = function(y,
             } else{
               #add
               gam_new[i, ind_q[i, j]] = TRUE
-              if (sum(gam_new[i,]) > 0) {
+              if (sum(gam_new[i, ]) > 0) {
                 ic_best_new = mypolr(
                   y[, i] ~ .,
-                  data = y[, gam_new[i,]],
+                  data = y[, gam_new[i, ]],
                   ic = ic,
                   method = method,
                   nq_y = nq[i],
-                  nq_x = nq[gam_new[i,]]
+                  nq_x = nq[gam_new[i, ]]
                 )
               } else{
                 if (nq[i] > 2) {
@@ -270,14 +271,14 @@ oBN_greedy = function(y,
             tmp = gam_new[i, ind_q[i, j]]
             gam_new[ind_q[i, j], i] = tmp
             gam_new[i, ind_q[i, j]] = !tmp
-            if (sum(gam_new[i,]) > 0) {
+            if (sum(gam_new[i, ]) > 0) {
               ic_rev_best_new[1] = mypolr(
                 y[, i] ~ .,
-                data = y[, gam_new[i,]],
+                data = y[, gam_new[i, ]],
                 ic = ic,
                 method = method,
                 nq_y = nq[i],
-                nq_x = nq[gam_new[i,]]
+                nq_x = nq[gam_new[i, ]]
               )
             } else{
               if (nq[i] > 2) {
@@ -289,11 +290,11 @@ oBN_greedy = function(y,
             if (gam_new[ind_q[i, j], i] > 0) {
               ic_rev_best_new[2] = mypolr(
                 y[, ind_q[i, j]] ~ .,
-                data = y[, gam_new[ind_q[i, j],]],
+                data = y[, gam_new[ind_q[i, j], ]],
                 ic = ic,
                 method = method,
                 nq_y = nq[ind_q[i, j]],
-                nq_x = nq[gam_new[ind_q[i, j],]]
+                nq_x = nq[gam_new[ind_q[i, j], ]]
               )
             } else{
               if (nq[i] > 2) {
@@ -332,24 +333,24 @@ oBN_greedy = function(y,
           ic_best[act_ind[2]] = ic_best[act_ind[2]] - ic_improv_rev[2]
         }
       }
-      if (verbose&&iter%%1==0){
-        print(paste(iter," iterations have completed",sep=""))
+      if (verbose && iter %% 1 == 0) {
+        print(paste(iter, " iterations have completed", sep = ""))
         print("The current DAG adjacency matrix is")
         print(gam)
-        print(paste("with ",  ic, " = ",sum(ic_best),sep=""))
+        print(paste("with ",  ic, " = ", sum(ic_best), sep = ""))
       }
     }
   } else if (ic == "aic") {
     ic_best = rep(0, q)
     for (i in 1:q) {
-      if (sum(gam[i,]) > 0) {
+      if (sum(gam[i, ]) > 0) {
         ic_best[i] = mypolr(
           y[, i] ~ .,
-          data = y[, gam[i,]],
+          data = y[, gam[i, ]],
           ic = ic,
           method = method,
           nq_y = nq[i],
-          nq_x = nq[gam[i,]]
+          nq_x = nq[gam[i, ]]
         )
       } else{
         if (nq[i] > 2) {
@@ -359,7 +360,8 @@ oBN_greedy = function(y,
         }
       }
     }
-    while (ic_improv > 0) {
+    while (ic_improv > 0 & iter < maxit) {
+      iter = iter + 1
       ic_improv = -Inf
       ic_improv_rev = rep(-Inf, 2)
       gam_new = gam
@@ -373,14 +375,14 @@ oBN_greedy = function(y,
             if (gam[i, ind_q[i, j]]) {
               #delete
               gam_new[i, ind_q[i, j]] = FALSE
-              if (sum(gam_new[i,]) > 0) {
+              if (sum(gam_new[i, ]) > 0) {
                 ic_best_new = mypolr(
                   y[, i] ~ .,
-                  data = y[, gam_new[i,]],
+                  data = y[, gam_new[i, ]],
                   ic = ic,
                   method = method,
                   nq_y = nq[i],
-                  nq_x = nq[gam_new[i,]]
+                  nq_x = nq[gam_new[i, ]]
                 )
               } else{
                 if (nq[i] > 2) {
@@ -399,14 +401,14 @@ oBN_greedy = function(y,
             } else{
               #add
               gam_new[i, ind_q[i, j]] = TRUE
-              if (sum(gam_new[i,]) > 0) {
+              if (sum(gam_new[i, ]) > 0) {
                 ic_best_new = mypolr(
                   y[, i] ~ .,
-                  data = y[, gam_new[i,]],
+                  data = y[, gam_new[i, ]],
                   ic = ic,
                   method = method,
                   nq_y = nq[i],
-                  nq_x = nq[gam_new[i,]]
+                  nq_x = nq[gam_new[i, ]]
                 )
               } else{
                 if (nq[i] > 2) {
@@ -433,14 +435,14 @@ oBN_greedy = function(y,
             tmp = gam_new[i, ind_q[i, j]]
             gam_new[ind_q[i, j], i] = tmp
             gam_new[i, ind_q[i, j]] = !tmp
-            if (sum(gam_new[i,]) > 0) {
+            if (sum(gam_new[i, ]) > 0) {
               ic_rev_best_new[1] = mypolr(
                 y[, i] ~ .,
-                data = y[, gam_new[i,]],
+                data = y[, gam_new[i, ]],
                 ic = ic,
                 method = method,
                 nq_y = nq[i],
-                nq_x = nq[gam_new[i,]]
+                nq_x = nq[gam_new[i, ]]
               )
             } else{
               if (nq[i] > 2) {
@@ -452,11 +454,11 @@ oBN_greedy = function(y,
             if (gam_new[ind_q[i, j], i] > 0) {
               ic_rev_best_new[2] = mypolr(
                 y[, ind_q[i, j]] ~ .,
-                data = y[, gam_new[ind_q[i, j],]],
+                data = y[, gam_new[ind_q[i, j], ]],
                 ic = ic,
                 method = method,
                 nq_y = nq[ind_q[i, j]],
-                nq_x = nq[gam_new[ind_q[i, j],]]
+                nq_x = nq[gam_new[ind_q[i, j], ]]
               )
             } else{
               if (nq[i] > 2) {
@@ -495,54 +497,356 @@ oBN_greedy = function(y,
           ic_best[act_ind[2]] = ic_best[act_ind[2]] - ic_improv_rev[2]
         }
       }
-    }
-    if (verbose&&iter%%10==0){
-      print(paste(iter," number of iterations have completed",sep=""))
-      print(paste("The current DAG adjacency matrix is ", gam, " with ",  ic, " = ",sum(ic_best),sep=""))
+      if (verbose && iter %% 1 == 0) {
+        print(paste(iter, " iterations have completed", sep = ""))
+        print("The current DAG adjacency matrix is")
+        print(gam)
+        print(paste("with ",  ic, " = ", sum(ic_best), sep = ""))
+      }
     }
   }
-  return(list(gam = gam, ic_best = sum(ic_best)))
+  if (iter == maxit) {
+    warning("The maximum number of iterations was reached. The algorithm has not converged.")
+  }
+  return(list(gam = gam + 0, ic_best = sum(ic_best)))
 }
+
+oBN_greedy_CPDAG = function(y,
+                            gam = NULL,
+                            ic = "bic",
+                            edge_list = NULL,
+                            method = "probit",
+                            verbose = verbose,
+                            maxit = maxit) {
+  #hill-climbing
+
+
+  n = nrow(y)
+  q = ncol(y)
+  nq = rep(0, q)
+  for (i in 1:q) {
+    nq[i] = nlevels(y[, i])
+  }
+  if (is.null(gam)) {
+    gam = matrix(FALSE, q, q)
+  } else{
+    gam = (gam != 0)
+  }
+
+  ind_q = vector("list", q)
+  nind_q = rep(0, q)
+  for (e in 1:nrow(edge_list)) {
+    i = edge_list[e, 1]
+    ind_q[[i]] = c(ind_q[[i]], edge_list[e, 2])
+    nind_q[i] = nind_q[i] + 1
+  }
+
+
+  iter = 0
+  ic_improv = 1
+  act_ind = c(NA, NA)
+  if (ic == "bic") {
+    ic_best = rep(0, q)
+    for (i in 1:q) {
+      if (sum(gam[i,]) > 0) {
+        ic_best[i] = mypolr(
+          y[, i] ~ .,
+          data = y[, gam[i,]],
+          ic = ic,
+          method = method,
+          nq_y = nq[i],
+          nq_x = nq[gam[i,]]
+        )
+      } else{
+        if (nq[i] > 2) {
+          ic_best[i] = stats::BIC(MASS::polr(y[, i] ~ 1, method = method))
+        } else{
+          ic_best[i] = stats::BIC(stats::glm(y[, i] ~ 1, family = stats::binomial(link = method)))
+        }
+      }
+    }
+    while (ic_improv > 0 && iter < maxit) {
+      iter = iter + 1
+      ic_improv = -Inf
+      ic_improv_rev = rep(-Inf, 2)
+      gam_new = gam
+      ic_improv_new = -Inf
+      ic_improv_rev_new = rep(-Inf, 2)
+      ic_best_new = -Inf
+      ic_rev_best_new = rep(-Inf, 2)
+      #reverse edge
+      for (i in 1:q) {
+        if (nind_q[i] > 0) {
+          for (j in 1:(nind_q[i])) {
+            if (admissible_rev(i, ind_q[[i]][j], gam)) {
+              tmp = gam_new[i, ind_q[[i]][j]]
+              gam_new[ind_q[[i]][j], i] = tmp
+              gam_new[i, ind_q[[i]][j]] = !tmp
+              if (sum(gam_new[i,]) > 0) {
+                ic_rev_best_new[1] = mypolr(
+                  y[, i] ~ .,
+                  data = y[, gam_new[i,]],
+                  ic = ic,
+                  method = method,
+                  nq_y = nq[i],
+                  nq_x = nq[gam_new[i,]]
+                )
+              } else{
+                if (nq[i] > 2) {
+                  ic_rev_best_new[1] = stats::BIC(MASS::polr(y[, i] ~ 1, method = method))
+                } else{
+                  ic_rev_best_new[1] = stats::BIC(stats::glm(y[, i] ~ 1, family = stats::binomial(link = method)))
+                }
+              }
+              if (gam_new[ind_q[[i]][j], i] > 0) {
+                ic_rev_best_new[2] = mypolr(
+                  y[, ind_q[[i]][j]] ~ .,
+                  data = y[, gam_new[ind_q[[i]][j],]],
+                  ic = ic,
+                  method = method,
+                  nq_y = nq[ind_q[[i]][j]],
+                  nq_x = nq[gam_new[ind_q[[i]][j],]]
+                )
+              } else{
+                if (nq[i] > 2) {
+                  ic_rev_best_new[2] = stats::BIC(MASS::polr(y[, ind_q[[i]][j]] ~ 1, method = method))
+                } else{
+                  ic_rev_best_new[2] = stats::BIC(stats::glm(y[, ind_q[[i]][j]] ~ 1, family = stats::binomial(link = method)))
+                }
+              }
+              ic_improv_rev_new[1] = ic_best[i] - ic_rev_best_new[1]
+              ic_improv_rev_new[2] = ic_best[ind_q[[i]][j]] - ic_rev_best_new[2]
+              ic_improv_new = ic_improv_rev_new[1] + ic_improv_rev_new[2]
+              if (ic_improv_new > ic_improv) {
+                ic_improv = ic_improv_new
+                ic_improv_rev = ic_improv_rev_new
+                act_ind = c(i, ind_q[[i]][j])
+              }
+              gam_new[i, ind_q[[i]][j]] = tmp
+              gam_new[ind_q[[i]][j], i] = !tmp
+            }
+          }
+        }
+      }
+
+      if (ic_improv > 0) {
+        tmp = gam[act_ind[1], act_ind[2]]
+        gam[act_ind[2], act_ind[1]] = tmp
+        gam[act_ind[1], act_ind[2]] = !tmp
+        ic_best[act_ind[1]] = ic_best[act_ind[1]] - ic_improv_rev[1]
+        ic_best[act_ind[2]] = ic_best[act_ind[2]] - ic_improv_rev[2]
+      }
+      if (verbose && iter %% 1 == 0) {
+        print(paste(iter, " iterations have completed", sep = ""))
+        print("The current DAG adjacency matrix is")
+        print(gam)
+        print(paste("with ",  ic, " = ", sum(ic_best), sep = ""))
+      }
+    }
+  } else if (ic == "aic") {
+    ic_best = rep(0, q)
+    for (i in 1:q) {
+      if (sum(gam[i,]) > 0) {
+        ic_best[i] = mypolr(
+          y[, i] ~ .,
+          data = y[, gam[i,]],
+          ic = ic,
+          method = method,
+          nq_y = nq[i],
+          nq_x = nq[gam[i,]]
+        )
+      } else{
+        if (nq[i] > 2) {
+          ic_best[i] = stats::AIC(MASS::polr(y[, i] ~ 1, method = method))
+        } else{
+          ic_best[i] = stats::AIC(stats::glm(y[, i] ~ 1, family = stats::binomial(link = method)))
+        }
+      }
+    }
+    while (ic_improv > 0 && iter < maxit) {
+      iter = iter + 1
+      ic_improv = -Inf
+      ic_improv_rev = rep(-Inf, 2)
+      gam_new = gam
+      ic_improv_new = -Inf
+      ic_improv_rev_new = rep(-Inf, 2)
+      ic_best_new = -Inf
+      ic_rev_best_new = rep(-Inf, 2)
+      #reverse edge
+      for (i in 1:q) {
+        if (nind_q[i] > 0) {
+          for (j in 1:(nind_q[i])) {
+            if (admissible_rev(i, ind_q[[i]][j], gam)) {
+              tmp = gam_new[i, ind_q[[i]][j]]
+              gam_new[ind_q[[i]][j], i] = tmp
+              gam_new[i, ind_q[[i]][j]] = !tmp
+              if (sum(gam_new[i,]) > 0) {
+                ic_rev_best_new[1] = mypolr(
+                  y[, i] ~ .,
+                  data = y[, gam_new[i,]],
+                  ic = ic,
+                  method = method,
+                  nq_y = nq[i],
+                  nq_x = nq[gam_new[i,]]
+                )
+              } else{
+                if (nq[i] > 2) {
+                  ic_rev_best_new[1] = stats::AIC(MASS::polr(y[, i] ~ 1, method = method))
+                } else{
+                  ic_rev_best_new[1] = stats::AIC(stats::glm(y[, i] ~ 1, family = stats::binomial(link = method)))
+                }
+              }
+              if (gam_new[ind_q[[i]][j], i] > 0) {
+                ic_rev_best_new[2] = mypolr(
+                  y[, ind_q[[i]][j]] ~ .,
+                  data = y[, gam_new[ind_q[[i]][j],]],
+                  ic = ic,
+                  method = method,
+                  nq_y = nq[ind_q[[i]][j]],
+                  nq_x = nq[gam_new[ind_q[[i]][j],]]
+                )
+              } else{
+                if (nq[i] > 2) {
+                  ic_rev_best_new[2] = stats::AIC(MASS::polr(y[, ind_q[[i]][j]] ~ 1, method = method))
+                } else{
+                  ic_rev_best_new[2] = stats::AIC(stats::glm(y[, ind_q[[i]][j]] ~ 1, family = stats::binomial(link = method)))
+                }
+              }
+              ic_improv_rev_new[1] = ic_best[i] - ic_rev_best_new[1]
+              ic_improv_rev_new[2] = ic_best[ind_q[[i]][j]] - ic_rev_best_new[2]
+              ic_improv_new = ic_improv_rev_new[1] + ic_improv_rev_new[2]
+              if (ic_improv_new > ic_improv) {
+                ic_improv = ic_improv_new
+                ic_improv_rev = ic_improv_rev_new
+                act_ind = c(i, ind_q[[i]][j])
+              }
+              gam_new[i, ind_q[[i]][j]] = tmp
+              gam_new[ind_q[[i]][j], i] = !tmp
+            }
+          }
+        }
+      }
+
+      if (ic_improv > 0) {
+        tmp = gam[act_ind[1], act_ind[2]]
+        gam[act_ind[2], act_ind[1]] = tmp
+        gam[act_ind[1], act_ind[2]] = !tmp
+        ic_best[act_ind[1]] = ic_best[act_ind[1]] - ic_improv_rev[1]
+        ic_best[act_ind[2]] = ic_best[act_ind[2]] - ic_improv_rev[2]
+      }
+      if (verbose && iter %% 1 == 0) {
+        print(paste(iter, " iterations have completed", sep = ""))
+        print("The current DAG adjacency matrix is")
+        print(gam)
+        print(paste("with ",  ic, " = ", sum(ic_best), sep = ""))
+      }
+    }
+  }
+  if (iter == maxit) {
+    warning("The maximum number of iterations was reached. The algorithm has not converged.")
+  }
+  return(list(gam = gam + 0, ic_best = sum(ic_best)))
+}
+
 
 #allow multiple runs of the greedy search with different initializations
 oBN_greedy_wrap = function(y,
                            ic = "bic",
+                           edge_list = NULL,
                            method = "probit",
                            nstart = 1,
-                           verbose=verbose) {
+                           verbose = verbose,
+                           maxit = maxit) {
   q = ncol(y)
   gam_list  = vector("list", nstart)
   ic_best_list = rep(NA, nstart)
   if (nstart == 1) {
-    fit = oBN_greedy(y,
-                     gam = NULL,
-                     ic = ic,
-                     method = method,
-                     verbose=verbose)
+    if (is.null(edge_list)) {
+      fit = oBN_greedy(
+        y,
+        gam = NULL,
+        ic = ic,
+        method = method,
+        verbose = verbose,
+        maxit = maxit
+      )
+    } else{
+      gam = matrix(0, q, q)
+      gam[edge_list] = 1
+      und_edge = which(as.matrix(Matrix::tril(gam * t(gam))) == 1, arr.ind = TRUE)
+      for (i in 1:nrow(und_edge)) {
+        if (stats::rbinom(1, 1, .5) == 1) {
+          gam[und_edge[i, 1], und_edge[i, 2]] = 0
+        } else{
+          gam[und_edge[i, 2], und_edge[i, 1]] = 0
+        }
+      }
+      fit = oBN_greedy_CPDAG(
+        y,
+        gam = gam,
+        ic = ic,
+        edge_list = und_edge,
+        method = method,
+        verbose = verbose,
+        maxit = maxit
+      )
+    }
     gam_list[[1]] = fit$gam
     ic_best_list[1] = fit$ic_best
   } else{
-    netlist = bnlearn::random.graph(
-      nodes = as.character(1:q),
-      method = "ordered",
-      num = nstart - 1,
-      prob = 1 / q
-    )
-    if (nstart == 2) {
-      netlist = list(netlist)
-    }
-    for (i in 1:nstart) {
-      gam = matrix(FALSE, q, q)
-      if (i != 1) {
-        gam[apply(netlist[[i - 1]]$arcs, 2, as.numeric)] = TRUE
+    if (is.null(edge_list)) {
+      netlist = bnlearn::random.graph(
+        nodes = as.character(1:q),
+        method = "ordered",
+        num = nstart - 1,
+        prob = 1 / q
+      )
+      if (nstart == 2) {
+        netlist = list(netlist)
       }
-      fit = oBN_greedy(y,
-                       gam = gam,
-                       ic = ic,
-                       method = method,
-                       verbose=verbose)
-      gam_list[[i]] = fit$gam
-      ic_best_list[i] = fit$ic_best
+      for (i in 1:nstart) {
+        gam = matrix(FALSE, q, q)
+        if (i != 1) {
+          gam[apply(netlist[[i - 1]]$arcs, 2, as.numeric)] = TRUE
+        }
+        fit = oBN_greedy(
+          y,
+          gam = gam,
+          ic = ic,
+          method = method,
+          verbose = verbose,
+          maxit = maxit
+        )
+
+        gam_list[[i]] = fit$gam
+        ic_best_list[i] = fit$ic_best
+      }
+    } else{
+      gam = matrix(0, q, q)
+      gam[edge_list] = 1
+      und_edge = which(as.matrix(Matrix::tril(gam * t(gam))) == 1, arr.ind = TRUE)
+      for (i in 1:nstart) {
+        gam_ini = gam
+
+        for (ii in 1:nrow(und_edge)) {
+          if (stats::rbinom(1, 1, .5) == 1) {
+            gam_ini[und_edge[ii, 1], und_edge[ii, 2]] = 0
+          } else{
+            gam_ini[und_edge[ii, 2], und_edge[ii, 1]] = 0
+          }
+        }
+        fit = oBN_greedy_CPDAG(
+          y,
+          gam = gam_ini,
+          ic = ic,
+          edge_list = und_edge,
+          method = method,
+          verbose = verbose,
+          maxit = maxit
+        )
+        gam_list[[i]] = fit$gam
+        ic_best_list[i] = fit$ic_best
+      }
     }
   }
   i = which.min(ic_best_list)
@@ -694,7 +998,7 @@ oBN_exhaust = function(y,
   mi = which.min(IC)
   ic_best = ic[mi]
   gam = gam_list[, , mi]
-  return(list(gam = gam, ic_best = ic_best))
+  return(list(gam = gam + 0, ic_best = ic_best))
 }
 
 
@@ -705,10 +1009,12 @@ oBN_exhaust = function(y,
 #' @param y a data frame with each column being an ordinal categorical variable, which must be a factor.
 #' @param search the search method used to find the best-scored DAG. The default search method is "greedy". When the number of nodes is less than 4, "exhaust" search is available.
 #' @param ic the information criterion (AIC or BIC) used to score DAGs. The default is "bic".
+#' @param edge_list an edge list of a CPDAG, which may contain both directed and undirected edges. This option can significantly speed up the algorithm by restricting the search space to DAGs that are Markov equivalent to the input CPDAG. Such CPDAG may be obtained by e.g., the PC algorithm; see the example below.
 #' @param link the link function for ordinal regression. The default is "probit". Other choices are "logistic", "loglog", "cloglog", and "cauchit".
 #' @param G a list of DAG adjacency matrices that users want to restrict their search on for the "exhaust" search. The default is "NULL" meaning no restriction imposed on the search.
 #' @param nstart number of random graph initializations for the "greedy" search.
 #' @param verbose if TRUE, messages are printed during the run of the greedy search algorithm.
+#' @param maxit the maximum number of iterations for the greedy search algorithm. The default is 50. When the maximum number of iteration is achieved, a warning message will be generated to caution the user that the algorithm has not converged.
 #' @return A list with two elements, gam and ic_best. gam is an estimated DAG adjacency matrix whose (i,j)th entry is 1 if j->i is present in the graph and 0 otherwise. ic_best is the correponding information criterion value.
 #'
 #' @export
@@ -731,21 +1037,35 @@ oBN_exhaust = function(y,
 #'   y[,j]=as.factor(y[,j])
 #' }
 #'
+#' time=proc.time()
 #' G=OCD(y) #estimated DAG adjacency matrix
-#' print(A)
-#' print(G)
+#' time=proc.time() - time
+#' print(A) #display the true adjacency
+#' print(G) #display the estimated adjacency
+#' print(time[3]) #elapsed time
+#'
+#' time2=proc.time()
+#' colnames(y)=1:ncol(y)
+#' PC=bnlearn::pc.stable(y,test="mi-sh",alpha=0.01)
+#' edge_list=matrix(as.numeric(PC$arcs),ncol=2)
+#' G2=OCD(y, edge_list=edge_list) #estimated DAG adjacency matrix with an input CPDAG from PC algorithm
+#' print(G2) #display the estimated adjacency
+#' time2=proc.time()-time2
+#' print(time2[3]) #elapsed time
 
 OCD = function(y,
                search = "greedy",
                ic = "bic",
+               edge_list = NULL,
                link = "probit",
                G = NULL,
                nstart = 1,
-               verbose = FALSE) {
+               verbose = FALSE,
+               maxit = 50) {
   if (search == "exhaust") {
     G = oBN_exhaust(y, G, ic, link)
   } else{
-    G = oBN_greedy_wrap(y, ic, link, nstart, verbose)
+    G = oBN_greedy_wrap(y, ic, edge_list, link, nstart, verbose, maxit)
   }
   return(G)
 }
