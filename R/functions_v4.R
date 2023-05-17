@@ -749,7 +749,7 @@ oBN_greedy_CPDAG = function(y,
 }
 
 
-#allow multiple runs of the greedy search with different initializations
+#allow multiple runs of the greedy search with different initial DAGs
 oBN_greedy_wrap = function(y,
                            ic = "bic",
                            edge_list = NULL,
@@ -1002,6 +1002,24 @@ oBN_exhaust = function(y,
 }
 
 
+#Almost the same as the main function OrdCD but without bootstrapping
+OCD = function(y,
+               search = "greedy",
+               ic = "bic",
+               edge_list = NULL,
+               link = "probit",
+               G = NULL,
+               nstart = 1,
+               verbose = FALSE,
+               maxit = 50) {
+  if (search == "exhaust") {
+    G = oBN_exhaust(y, G, ic, link)
+  } else{
+    G = oBN_greedy_wrap(y, ic, edge_list, link, nstart, verbose, maxit)
+  }
+  return(G)
+}
+
 #' @title Causal Discovery for Ordinal Categorical Data
 #'
 #' @description Estimate a causal directed acyclic graph (DAG) for ordinal categorical data with greedy or exhaustive search.
@@ -1015,7 +1033,8 @@ oBN_exhaust = function(y,
 #' @param nstart number of random graph initializations for the "greedy" search.
 #' @param verbose if TRUE, messages are printed during the run of the greedy search algorithm.
 #' @param maxit the maximum number of iterations for the greedy search algorithm. The default is 50. When the maximum number of iteration is achieved, a warning message will be generated to caution the user that the algorithm has not converged.
-#' @return A list with two elements, gam and ic_best. gam is an estimated DAG adjacency matrix whose (i,j)th entry is 1 if j->i is present in the graph and 0 otherwise. ic_best is the correponding information criterion value.
+#' @param boot the number of bootstrap samples. Default is no bootstrapping.
+#' @return A list with "boot" elements. Each element is a list with two elements, gam and ic_best. gam is an estimated DAG adjacency matrix whose (i,j)th entry is 1 if j->i is present in the graph and 0 otherwise. ic_best is the corresponding information criterion value.
 #'
 #' @export
 #'
@@ -1038,7 +1057,7 @@ oBN_exhaust = function(y,
 #' }
 #'
 #' time=proc.time()
-#' G=OCD(y) #estimated DAG adjacency matrix
+#' G=OrdCD(y) #estimated DAG adjacency matrix
 #' time=proc.time() - time
 #' print(A) #display the true adjacency
 #' print(G) #display the estimated adjacency
@@ -1048,12 +1067,22 @@ oBN_exhaust = function(y,
 #' colnames(y)=1:ncol(y)
 #' PC=bnlearn::pc.stable(y,test="mi-sh",alpha=0.01)
 #' edge_list=matrix(as.numeric(PC$arcs),ncol=2)
-#' G2=OCD(y, edge_list=edge_list) #estimated DAG adjacency matrix with an input CPDAG from PC algorithm
-#' print(G2) #display the estimated adjacency
+#' G2=OrdCD(y, edge_list=edge_list) #estimated DAG with an input CPDAG from PC algorithm
 #' time2=proc.time()-time2
+#' print(G2) #display the estimated adjacency
 #' print(time2[3]) #elapsed time
+#'
+#'\dontrun{
+#' time3=proc.time()
+#' G3=OrdCD(y,boot=10) #estimated DAG adjacency matrix with bootstrapping
+#' time3=proc.time() - time3
+#' #average over bootstrap samples
+#' G_avg = matrix(colMeans(matrix(unlist(G3),nrow=q^2+1,byrow=TRUE))[1:(q^2)],q,q)
+#' print(G_avg) #display the estimated adjacency averaged over 10 bootstrap samples
+#' print(time3[3]) #elapsed time
+#'}
 
-OCD = function(y,
+OrdCD = function(y,
                search = "greedy",
                ic = "bic",
                edge_list = NULL,
@@ -1061,11 +1090,16 @@ OCD = function(y,
                G = NULL,
                nstart = 1,
                verbose = FALSE,
-               maxit = 50) {
-  if (search == "exhaust") {
-    G = oBN_exhaust(y, G, ic, link)
-  } else{
-    G = oBN_greedy_wrap(y, ic, edge_list, link, nstart, verbose, maxit)
+               maxit = 50,
+               boot = NULL) {
+  if (is.null(boot)){
+    G = OCD(y, search, ic, edge_list, link, G, nstart, verbose, maxit)
+  }else{
+    G = vector("list",boot)
+    for (b in 1:boot){
+      G[[b]] = OCD(y[sample(nrow(y),replace = TRUE),], search, ic, edge_list, link, G, nstart, verbose, maxit)
+    }
   }
   return(G)
 }
+

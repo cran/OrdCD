@@ -3,7 +3,7 @@
 
 OrdCD is an R package (available on CRAN) for discovering causality from observational ordinal categorical data, developed and maintained by Yang Ni at Texas A&M University.
 
-The package can also be downloaded at https://web.stat.tamu.edu/~yni/files/OrdCD_1.1.0.tar.gz.
+The package can also be downloaded at https://web.stat.tamu.edu/~yni/files/OrdCD_1.1.2.tar.gz.
 
 
 #### Reference:  
@@ -31,7 +31,7 @@ for (j in 1:q){
   y[,j]=as.factor(y[,j])
 }
 
-G=OCD(y) #estimated DAG adjacency matrix
+G=OrdCD(y) #estimated DAG adjacency matrix
 print(A)
 print(G)
 ```
